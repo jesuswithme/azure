@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Blob Storage File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #0078D4;
+        }
+        #uploadForm {
+            margin-top: 20px;
+        }
+        #fileInput {
+            margin-bottom: 10px;
+        }
+        #uploadButton {
+            background-color: #0078D4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+        #uploadButton:disabled {
+            background-color: #cccccc;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Upload to Azure Blob Storage</h1>
+    
+    <form id="uploadForm">
+        <input type="file" id="fileInput" />
+        <button type="submit" id="uploadButton" disabled>Upload</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const resultDiv = document.getElementById('result');
+
+        // Azure Blob Storage 설정
+        const storageAccount = "az104blobstorage";
+        const containerName = "download";
+        const sasToken = "sp=w&st=2024-08-14T12:56:48Z&se=2025-09-17T20:56:48Z&spr=https&sv=2022-11-02&sr=c&sig=mSbFnxtZnTLV9PaexpivKkPoWMJmVfv6F%2Fy5mqRFmh0%3D";
+
+        fileInput.addEventListener('change', () => {
+            uploadButton.disabled = !fileInput.files.length;
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            uploadButton.disabled = true;
+            resultDiv.style.display = 'none';
+
+            try {
+                const blobName = new Date().getTime() + '-' + file.name; // 파일명 충돌 방지
+                const url = `https://${storageAccount}.blob.core.windows.net/${containerName}/${blobName}?${sasToken}`;
+
+                const response = await fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "x-ms-blob-type": "BlockBlob",
+                        "Content-Type": file.type
+                    },
+                    body: file
+                });
+
+                if (response.ok) {
+                    const fileUrl = url.split('?')[0]; // SAS 토큰 제거
+                    resultDiv.innerHTML = `
+                        <p>File uploaded successfully!</p>
+                        <p>File name: ${blobName}</p>
+                        <p>Note: The file is accessible only with proper authentication.</p>
+                    `;
+                } else {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                resultDiv.style.display = 'block';
+                uploadButton.disabled = false;
+                form.reset();
+            }
+        });
+    </script>
+</body>
+</html>
